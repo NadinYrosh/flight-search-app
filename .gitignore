@@ -2,3 +2,11 @@
 bin/*
 include/*
 lib/*
+.DS_Store
+*.mypy_cache/
+*__pycache__/
+share/*
+*.pyc
+*.sqlite3
+*.txt
+*.json
