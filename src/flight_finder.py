@@ -2,6 +2,7 @@ import requests
 import json
 import datetime
 import sqlite3
+import time
 from urllib.parse import urlencode
 from os import path
 
@@ -81,6 +82,84 @@ def write_to_file(data, file_path):
 def main():
     create_schema()
 
+    response = api_call(
+        "PDX",
+        "SFO",
+        datetime.datetime(2019, 5, 10),
+        datetime.datetime(2019, 5, 10),
+        datetime.datetime(2019, 5, 19),
+        datetime.datetime(2019, 5, 19),
+        datetime.timedelta(hours=3),
+        0,
 
+    )
+
+    cursor = db.cursor()
+
+    for trip in response['data']:
+        print(json.dumps(trip, indent=4, sort_keys=True))
+
+        cursor.execute(
+            "DELETE FROM trip WHERE key = ?",
+            (trip['id'], )
+        )
+        cursor.execute(
+            "DELETE FROM flight WHERE trip_key = ?",
+            (trip['id'], )
+        )
+
+        print("Inserting record for {trip}".format(trip=trip['id']))
+        cursor.execute("""
+            INSERT INTO trip (
+                key,
+                bag_limit,
+                bag_price,
+                city_from
+            ) VALUES (
+                ?,
+                ?,
+                ?,
+                ?
+            )
+        """, (
+            trip['id'],
+            trip['baglimit'].get('hold_weight'),
+            trip['bags_price'].get('1', 0) * 100,
+            trip['cityFrom']
+        ))
+
+        for flight in trip["route"] :
+            cursor.execute("""
+                INSERT INTO flight (
+                    key,
+                    trip_key,
+                    arrival_time,
+                    city_from,
+                    city_to,
+                    departure_time,
+                    airport_code_from,
+                    airport_code_to
+                ) VALUES (
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?
+                )
+            """, (
+                flight['id'],
+                trip['id'],
+                flight['aTime'],
+                flight['cityFrom'],
+                flight['cityTo'],
+                flight['dTime'],
+                flight['flyFrom'],
+                flight['flyTo']
+            ))
+
+    db.commit()
 if __name__ == '__main__':
     main()
